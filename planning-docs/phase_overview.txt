@@ -1,0 +1,146 @@
+# MCP Server Implementation - Complete Phase Guide
+
+## Overview
+This guide breaks down the MCP server implementation into 4 manageable phases to avoid context window issues with Cline AI.
+
+## Phase Execution Strategy
+
+### Phase 1: Project Setup & Configuration
+**Focus**: Foundation, dependencies, TypeScript setup
+**Time Estimate**: 10-15 minutes
+**Files Created**: package.json, tsconfig.json, .gitignore
+**Success Criteria**: Clean npm install, TypeScript configuration works
+
+### Phase 2: Core MCP Server Implementation  
+**Focus**: Main server code with all MCP capabilities
+**Time Estimate**: 20-30 minutes  
+**Files Created**: src/index.ts (complete server implementation)
+**Success Criteria**: Server builds, MCP Inspector shows all features
+
+### Phase 3: Docker Configuration & Scripts
+**Focus**: Production deployment, Docker optimization
+**Time Estimate**: 15-20 minutes
+**Files Created**: Dockerfile, .dockerignore, 3 shell scripts
+**Success Criteria**: Docker builds and runs successfully
+
+### Phase 4: Documentation & Final Testing
+**Focus**: Complete docs, testing, validation
+**Time Estimate**: 15-20 minutes
+**Files Created**: README.md, LICENSE, DEVELOPMENT.md, STATUS.md
+**Success Criteria**: All documentation complete, full test suite passes
+
+## How to Use with Cline AI
+
+### Recommended Approach:
+
+1. **Start with Phase 1**
+   - Give Cline AI only the "Phase 1" document
+   - Wait for complete implementation and testing
+   - Verify success criteria are met
+
+2. **Move to Phase 2**
+   - Start new conversation with Cline AI (to reset context)
+   - Provide "Phase 2" document
+   - Reference that Phase 1 is already complete
+   - Wait for implementation and testing
+
+3. **Continue with Phase 3**
+   - New conversation for Phase 3
+   - Mention Phases 1-2 are complete
+   - Focus only on Docker implementation
+
+4. **Finish with Phase 4**
+   - Final conversation for documentation
+   - Reference all previous phases complete
+   - Focus on docs and final validation
+
+### Alternative Approach:
+If you prefer to use single conversation:
+- Implement phases sequentially
+- Ask Cline to confirm completion before moving to next phase
+- Take breaks between phases to let context reset naturally
+
+## Context Window Benefits
+
+**Why This Approach Works:**
+- Each phase fits comfortably in Cline AI's context window
+- Clear, focused objectives for each phase  
+- Reduced risk of truncation or forgotten instructions
+- Easier debugging if issues arise
+- Natural stopping points for testing
+
+**Phase Sizes:**
+- Phase 1: ~1,500 tokens
+- Phase 2: ~3,500 tokens  
+- Phase 3: ~2,500 tokens
+- Phase 4: ~3,000 tokens
+
+Total: ~10,500 tokens across 4 phases vs ~8,000+ tokens in single phase
+
+## Success Indicators
+
+### Phase 1 Success:
+```bash
+npm install  # completes without errors
+npx tsc --noEmit  # no TypeScript errors
+```
+
+### Phase 2 Success:
+```bash
+npm run build  # compiles successfully
+npm run inspect  # MCP Inspector shows all capabilities
+```
+
+### Phase 3 Success:  
+```bash
+npm run docker:build  # image builds
+npm run docker:run    # container starts
+docker ps             # shows running container
+```
+
+### Phase 4 Success:
+```bash
+# All documentation files exist and are comprehensive
+# Final test sequence passes completely
+```
+
+## Tips for Cline AI Implementation
+
+1. **Be Specific**: Each phase has exact file contents and commands
+2. **Test Incrementally**: Verify each step before proceeding
+3. **Use Success Criteria**: Don't move forward until criteria are met
+4. **Handle Errors**: Each phase includes troubleshooting guidance
+5. **Take Breaks**: Let Cline complete each phase fully before continuing
+
+## Troubleshooting by Phase
+
+### Phase 1 Issues:
+- Node.js version compatibility
+- npm installation problems
+- TypeScript configuration errors
+
+### Phase 2 Issues:
+- Import/export syntax for ES modules
+- MCP SDK API usage
+- TypeScript compilation errors
+
+### Phase 3 Issues:  
+- Docker installation/running
+- Shell script permissions
+- Container networking
+
+### Phase 4 Issues:
+- Documentation accuracy  
+- Final integration testing
+- Missing file permissions
+
+## Final Result
+After all 4 phases, you'll have:
+- ✅ Complete MCP server with all capabilities
+- ✅ Production-ready Docker deployment
+- ✅ MCP Inspector integration for testing
+- ✅ Comprehensive documentation
+- ✅ Ready for Claude Desktop integration
+- ✅ Scalable architecture for future enhancements
+
+This phased approach ensures Cline AI can implement everything correctly without running into context limitations or losing track of requirements.

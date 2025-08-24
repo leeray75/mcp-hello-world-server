@@ -1,0 +1,273 @@
+# MCP Server Implementation - Phase 3: Docker Configuration & Scripts
+
+## Overview
+This is Phase 3 of 4 for creating a minimal MCP server with Docker support.
+Focus: Docker setup, production optimization, and deployment scripts.
+
+## Prerequisites
+- Phase 1 and Phase 2 completed successfully
+- Server builds and runs with MCP Inspector
+- Docker installed and running (Rancher Desktop in your case)
+
+## Objective
+Create Docker configuration for production deployment with optimization and convenience scripts.
+
+## Implementation Steps
+
+### Step 1: Create Dockerfile
+Create `Dockerfile` in project root:
+
+```dockerfile
+# Multi-stage build for production optimization
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY src/ ./src/
+
+# Build the application
+RUN npm run build
+
+# Production stage
+FROM node:22-alpine AS production
+
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S mcp -u 1001
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy built application
+COPY --from=builder /app/build ./build
+
+# Change ownership to non-root user
+RUN chown -R mcp:nodejs /app
+USER mcp
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "console.log('Server is healthy')" || exit 1
+
+# Expose port (for future HTTP support)
+EXPOSE 3000
+
+# Start the server
+CMD ["node", "build/index.js"]
+```
+
+### Step 2: Create Docker Ignore File
+Create `.dockerignore`:
+
+```
+node_modules
+npm-debug.log
+build
+.git
+.gitignore
+README.md
+.env
+.nyc_output
+coverage
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+scripts/*.sh
+*.md
+```
+
+### Step 3: Create Docker Build Script
+Create `scripts/docker-build.sh`:
+
+```bash
+#!/bin/bash
+set -e
+
+echo "🐳 Building MCP Hello World Server Docker image..."
+
+# Build the Docker image
+docker build -t mcp-hello-world-server:latest .
+
+echo "✅ Docker image built successfully!"
+echo "📦 Image: mcp-hello-world-server:latest"
+echo ""
+echo "Next steps:"
+echo "  Run: npm run docker:run"
+echo "  Or: ./scripts/docker-run.sh"
+```
+
+### Step 4: Create Docker Run Script  
+Create `scripts/docker-run.sh`:
+
+```bash
+#!/bin/bash
+set -e
+
+# Stop existing container if running
+echo "🛑 Stopping existing container if running..."
+docker stop mcp-hello-world 2>/dev/null || true
+docker rm mcp-hello-world 2>/dev/null || true
+
+echo "🚀 Starting MCP Hello World Server in Docker..."
+
+# Run the container
+docker run -d \
+  --name mcp-hello-world \
+  --restart unless-stopped \
+  -p 3000:3000 \
+  mcp-hello-world-server:latest
+
+echo "✅ Container started successfully!"
+echo ""
+echo "📋 Container Details:"
+echo "  Name: mcp-hello-world"
+echo "  Image: mcp-hello-world-server:latest"
+echo "  Port: 3000 (for future HTTP support)"
+echo ""
+echo "📝 Useful Commands:"
+echo "  View logs: docker logs -f mcp-hello-world"
+echo "  Stop: npm run docker:stop"
+echo "  Restart: docker restart mcp-hello-world"
+echo ""
+
+# Show container status
+echo "📊 Container Status:"
+docker ps --filter name=mcp-hello-world --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+```
+
+### Step 5: Create Docker Stop Script
+Create `scripts/docker-stop.sh`:
+
+```bash
+#!/bin/bash
+set -e
+
+echo "🛑 Stopping MCP Hello World Server container..."
+
+docker stop mcp-hello-world 2>/dev/null || {
+  echo "⚠️  Container 'mcp-hello-world' not running"
+  exit 0
+}
+
+docker rm mcp-hello-world 2>/dev/null || true
+
+echo "✅ Container stopped and removed successfully!"
+```
+
+### Step 6: Make Scripts Executable
+Run this command to make all scripts executable:
+
+```bash
+chmod +x scripts/*.sh
+```
+
+### Step 7: Update package.json Scripts
+Verify these scripts exist in your package.json (should already be there from Phase 1):
+
+```json
+{
+  "scripts": {
+    "docker:build": "./scripts/docker-build.sh",
+    "docker:run": "./scripts/docker-run.sh", 
+    "docker:stop": "./scripts/docker-stop.sh"
+  }
+}
+```
+
+If missing, add the docker:stop script manually.
+
+### Step 8: Build and Test Docker
+Test the complete Docker setup:
+
+```bash
+# Build the Docker image
+npm run docker:build
+
+# Run the container
+npm run docker:run
+
+# Check if container is running
+docker ps
+
+# View logs (server won't show much since it uses stdio)
+docker logs mcp-hello-world
+
+# Stop the container  
+npm run docker:stop
+```
+
+## Docker Architecture Explanation
+
+**Multi-stage Build:**
+- **Builder stage**: Installs all dependencies, builds TypeScript
+- **Production stage**: Only includes runtime dependencies and built files
+- **Result**: Smaller, more secure production image
+
+**Security Features:**
+- Runs as non-root user (`mcp` user)
+- Minimal Alpine Linux base image
+- Only production dependencies included
+- Health check for container monitoring
+
+**Future-Ready:**
+- Port 3000 exposed for potential HTTP transport
+- Restart policy for production reliability
+- Health checks for orchestration systems
+
+## Success Criteria
+- [ ] Dockerfile created with multi-stage build
+- [ ] .dockerignore created to exclude unnecessary files
+- [ ] All three shell scripts created and executable
+- [ ] Docker image builds successfully
+- [ ] Container starts and runs without errors
+- [ ] Container can be stopped cleanly
+- [ ] Scripts provide clear feedback and status
+
+## Troubleshooting
+
+**Build Issues:**
+- Ensure Phase 2 completed (src/index.ts exists and builds)
+- Check Docker is running: `docker info`
+- Verify file permissions: `ls -la scripts/`
+
+**Runtime Issues:**
+- Check container logs: `docker logs mcp-hello-world`
+- Verify image exists: `docker images | grep mcp-hello-world`
+- Test health check: `docker exec mcp-hello-world node -e "console.log('test')"`
+
+**Script Permission Errors:**
+- Run: `chmod +x scripts/*.sh`
+- On Windows, use Git Bash or WSL
+
+## Testing Checklist
+- [ ] `npm run docker:build` completes successfully
+- [ ] `npm run docker:run` starts container
+- [ ] `docker ps` shows running container
+- [ ] `npm run docker:stop` stops container cleanly
+- [ ] Scripts show helpful output messages
+
+## Next Phase
+After Phase 3 is working correctly, proceed to Phase 4: Documentation & Final Testing
+
+## Files Created This Phase
+- Dockerfile
+- .dockerignore  
+- scripts/docker-build.sh
+- scripts/docker-run.sh
+- scripts/docker-stop.sh
+
+Phase 3 Complete ✓

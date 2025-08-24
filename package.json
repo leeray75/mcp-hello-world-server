@@ -1,0 +1,29 @@
+{
+  "name": "mcp-hello-world-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A minimal MCP server demonstrating tools, resources, and prompts",
+  "main": "build/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "dev": "tsc --watch",
+    "inspect": "npm run build && npx @modelcontextprotocol/inspector node build/index.js",
+    "docker:build": "./scripts/docker-build.sh",
+    "docker:run": "./scripts/docker-run.sh",
+    "docker:stop": "./scripts/docker-stop.sh",
+    "docker:logs": "./scripts/docker-logs.sh",
+    "docker:inspect": "./scripts/docker-inspect.sh"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.4"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/inspector": "^0.16.5",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

@@ -1,0 +1,165 @@
+# MCP Server Implementation - Phase 1: Project Setup & Configuration
+
+## Overview
+This is Phase 1 of 4 for creating a minimal MCP server with Docker support.
+Focus: Project initialization, package configuration, and TypeScript setup.
+
+## Objective
+Create the foundation structure and configuration files for the MCP server project.
+
+## Prerequisites
+- Node.js 22+ installed
+- npm available
+- Basic familiarity with TypeScript projects
+
+## Implementation Steps
+
+### Step 1: Create Project Structure
+```bash
+mkdir mcp-hello-world-server
+cd mcp-hello-world-server
+mkdir src scripts
+```
+
+Expected structure:
+```
+mcp-hello-world-server/
+├── src/
+├── scripts/
+└── (files to be created below)
+```
+
+### Step 2: Create package.json
+Create `package.json` with this exact content:
+```json
+{
+  "name": "mcp-hello-world-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A minimal MCP server demonstrating tools, resources, and prompts",
+  "main": "build/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "dev": "tsc --watch & node --watch build/index.js",
+    "inspect": "npm run build && npx @modelcontextprotocol/inspector node build/index.js",
+    "docker:build": "./scripts/docker-build.sh",
+    "docker:run": "./scripts/docker-run.sh",
+    "docker:stop": "docker stop mcp-hello-world || true"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.4"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/inspector": "^0.16.5",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
+```
+
+### Step 3: Create TypeScript Configuration
+Create `tsconfig.json`:
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "outDir": "./build",
+    "rootDir": "./src",
+    "declaration": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "build"]
+}
+```
+
+### Step 4: Create Git Configuration
+Create `.gitignore`:
+```
+# Dependencies
+node_modules/
+
+# Build output
+build/
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+.nyc_output
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+```
+
+### Step 5: Install Dependencies
+Run these commands:
+```bash
+npm install
+```
+
+### Step 6: Verify Setup
+Check that everything is configured correctly:
+```bash
+# This should show no errors (even though no src files exist yet)
+npx tsc --noEmit
+
+# Verify packages installed
+npm list
+```
+
+## Success Criteria
+- [ ] Project directory created with correct structure
+- [ ] package.json created with correct dependencies
+- [ ] tsconfig.json configured for ES modules
+- [ ] .gitignore created
+- [ ] npm install completes without errors
+- [ ] TypeScript compiler runs without configuration errors
+
+## Troubleshooting
+- If npm install fails, ensure Node.js 22+ is installed
+- If TypeScript errors occur, verify tsconfig.json syntax
+- Ensure "type": "module" is set in package.json for ES module support
+
+## Next Phase
+After completing Phase 1, proceed to Phase 2: Core Server Implementation
+
+## Files Created This Phase
+- package.json
+- tsconfig.json  
+- .gitignore
+
+Phase 1 Complete ✓
