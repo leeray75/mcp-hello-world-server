@@ -7,10 +7,14 @@
   "scripts": {
     "build": "tsc",
     "start": "node build/index.js",
+    "start:http": "TRANSPORT=http npm start",
+    "start:stdio": "TRANSPORT=stdio npm start",
     "dev": "tsc --watch",
     "inspect": "npm run build && npx @modelcontextprotocol/inspector node build/index.js",
     "docker:build": "./scripts/docker-build.sh",
     "docker:run": "./scripts/docker-run.sh",
+    "docker:run:http": "./scripts/docker-run-http.sh",
+    "docker:run:stdio": "./scripts/docker-run.sh --stdio",
     "docker:stop": "./scripts/docker-stop.sh",
     "docker:logs": "./scripts/docker-logs.sh",
     "docker:inspect": "./scripts/docker-inspect.sh"
