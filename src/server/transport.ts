@@ -6,12 +6,245 @@
  */
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import express, { Request, Response } from 'express';
 import { createLogger, Logger } from '../utils/logger.js';
-import { TransportConfig } from '../types/server-types.js';
+import { TransportConfig, HttpTransportOptions } from '../types/server-types.js';
+import { Server as HttpServer } from 'http';
+
+/**
+ * SSE connection interface for managing Server-Sent Events connections
+ */
+interface SSEConnection {
+  id: string;
+  response: Response;
+  lastPing: Date;
+}
+
+/**
+ * HTTP transport class for handling HTTP/SSE communication
+ * @description Manages HTTP server with Express and SSE connections
+ */
+export class HttpTransport {
+  private app: express.Application;
+  private server?: HttpServer;
+  private sseConnections: Map<string, SSEConnection> = new Map();
+  private logger: Logger;
+  private options: HttpTransportOptions;
+
+  constructor(logger: Logger, options: HttpTransportOptions = {}) {
+    this.logger = logger;
+    this.options = {
+      port: 3000,
+      host: '0.0.0.0',
+      cors: false,
+      maxConnections: 100,
+      connectionTimeout: 30000,
+      ...options,
+    };
+
+    this.app = express();
+    this.setupMiddleware();
+    this.setupRoutes();
+  }
+
+  private setupMiddleware(): void {
+    this.app.use(express.json());
+    
+    if (this.options.cors) {
+      this.app.use((req, res, next) => {
+        res.header('Access-Control-Allow-Origin', '*');
+        res.header('Access-Control-Allow-Headers', 'Content-Type');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        if (req.method === 'OPTIONS') {
+          res.sendStatus(200);
+          return;
+        }
+        next();
+      });
+    }
+
+    // Request logging
+    this.app.use((req, res, next) => {
+      this.logger.debug('HTTP request', { 
+        method: req.method, 
+        url: req.url,
+        userAgent: req.get('User-Agent')
+      });
+      next();
+    });
+  }
+
+  private setupRoutes(): void {
+    // Health check endpoint
+    this.app.get('/health', (req, res) => {
+      res.json({ 
+        status: 'healthy', 
+        timestamp: new Date().toISOString(),
+        connections: this.sseConnections.size
+      });
+    });
+
+    // SSE endpoint for real-time communication
+    this.app.get('/mcp/events', this.handleSSE.bind(this));
+
+    // MCP HTTP endpoints will be added by the MCP server
+    this.app.post('/mcp/tools/list', this.createMCPHandler('tools/list'));
+    this.app.post('/mcp/tools/call', this.createMCPHandler('tools/call'));
+    this.app.post('/mcp/resources/list', this.createMCPHandler('resources/list'));
+    this.app.post('/mcp/resources/read', this.createMCPHandler('resources/read'));
+    this.app.post('/mcp/prompts/list', this.createMCPHandler('prompts/list'));
+    this.app.post('/mcp/prompts/get', this.createMCPHandler('prompts/get'));
+  }
+
+  private handleSSE(req: Request, res: Response): void {
+    const connectionId = `sse_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    this.logger.info('New SSE connection', { connectionId });
+
+    // Check connection limit
+    if (this.sseConnections.size >= (this.options.maxConnections || 100)) {
+      res.status(503).json({ error: 'Too many connections' });
+      return;
+    }
+
+    // Set SSE headers
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Cache-Control',
+    });
+
+    // Store connection
+    const connection: SSEConnection = {
+      id: connectionId,
+      response: res,
+      lastPing: new Date(),
+    };
+    this.sseConnections.set(connectionId, connection);
+
+    // Send initial connection message
+    this.sendSSEMessage(connectionId, 'connected', { connectionId });
+
+    // Handle client disconnect
+    req.on('close', () => {
+      this.logger.info('SSE connection closed', { connectionId });
+      this.sseConnections.delete(connectionId);
+    });
+
+    // Keep connection alive with periodic pings
+    const pingInterval = setInterval(() => {
+      if (this.sseConnections.has(connectionId)) {
+        this.sendSSEMessage(connectionId, 'ping', { timestamp: new Date().toISOString() });
+      } else {
+        clearInterval(pingInterval);
+      }
+    }, 30000);
+  }
+
+  private sendSSEMessage(connectionId: string, event: string, data: any): void {
+    const connection = this.sseConnections.get(connectionId);
+    if (connection) {
+      try {
+        connection.response.write(`event: ${event}\n`);
+        connection.response.write(`data: ${JSON.stringify(data)}\n\n`);
+        connection.lastPing = new Date();
+      } catch (error) {
+        this.logger.error('Failed to send SSE message', { connectionId, error });
+        this.sseConnections.delete(connectionId);
+      }
+    }
+  }
+
+  private createMCPHandler(endpoint: string) {
+    return async (req: Request, res: Response) => {
+      try {
+        this.logger.debug('MCP HTTP request', { endpoint, body: req.body });
+        
+        // For now, return a placeholder response
+        // This will be properly implemented when we connect it to the MCP server
+        res.json({
+          jsonrpc: '2.0',
+          id: req.body.id || null,
+          result: { 
+            message: `HTTP transport for ${endpoint} - not yet connected to MCP server`,
+            endpoint,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (error) {
+        this.logger.error('MCP HTTP request failed', { endpoint, error });
+        res.status(500).json({
+          jsonrpc: '2.0',
+          id: req.body.id || null,
+          error: {
+            code: -32603,
+            message: 'Internal error',
+            data: error instanceof Error ? error.message : String(error)
+          }
+        });
+      }
+    };
+  }
+
+  async start(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const port = this.options.port || 3000;
+      const host = this.options.host || '0.0.0.0';
+      
+      this.server = this.app.listen(port, host, () => {
+        this.logger.info('HTTP transport started', {
+          port,
+          host
+        });
+        resolve();
+      });
+
+      this.server.on('error', (error) => {
+        this.logger.error('HTTP server error', { error });
+        reject(error);
+      });
+    });
+  }
+
+  async stop(): Promise<void> {
+    return new Promise((resolve) => {
+      // Close all SSE connections
+      for (const connection of this.sseConnections.values()) {
+        connection.response.end();
+      }
+      this.sseConnections.clear();
+
+      if (this.server) {
+        this.server.close(() => {
+          this.logger.info('HTTP transport stopped');
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+    });
+  }
+
+  getApp(): express.Application {
+    return this.app;
+  }
+
+  getConnectionCount(): number {
+    return this.sseConnections.size;
+  }
+
+  broadcastSSE(event: string, data: any): void {
+    for (const connectionId of this.sseConnections.keys()) {
+      this.sendSSEMessage(connectionId, event, data);
+    }
+  }
+}
 
 /**
  * Transport manager class for handling server transport connections
- * @description Manages STDIO transport for MCP server communication
+ * @description Manages STDIO and HTTP transports for MCP server communication
  * @example
  * ```typescript
  * const transportManager = new TransportManager({
@@ -28,6 +261,8 @@ export class TransportManager {
   private readonly config: TransportConfig;
   /** Current transport instance */
   private transport?: StdioServerTransport;
+  /** HTTP transport instance for HTTP mode */
+  private httpTransport?: HttpTransport;
 
   /**
    * Create a new transport manager instance
@@ -52,15 +287,17 @@ export class TransportManager {
 
   /**
    * Create a new transport instance
-   * @returns The created transport instance
+   * @returns The created transport instance (for STDIO) or undefined (for HTTP mode)
    * @throws Error if transport type is unsupported
    * @example
    * ```typescript
    * const transport = transportManager.createTransport();
-   * await server.connect(transport);
+   * if (transport) {
+   *   await server.connect(transport);
+   * }
    * ```
    */
-  createTransport(): StdioServerTransport {
+  createTransport(): StdioServerTransport | undefined {
     this.logger.info('Creating transport', { type: this.config.type });
 
     try {
@@ -68,6 +305,9 @@ export class TransportManager {
         case 'stdio':
           this.transport = this.createStdioTransport();
           break;
+        case 'http':
+          this.httpTransport = this.createHttpTransport();
+          return undefined; // HTTP transport doesn't return a StdioServerTransport
         case 'sse':
           throw new Error('SSE transport not implemented yet');
         case 'websocket':
@@ -88,6 +328,66 @@ export class TransportManager {
       });
       throw error;
     }
+  }
+
+  /**
+   * Create HTTP transport instance
+   * @returns Configured HTTP transport
+   * @private
+   * @example
+   * ```typescript
+   * // Internal usage only
+   * const httpTransport = this.createHttpTransport();
+   * ```
+   */
+  private createHttpTransport(): HttpTransport {
+    this.logger.debug('Creating HTTP transport');
+
+    // Apply HTTP-specific options from config
+    const options = this.config.options as HttpTransportOptions || {};
+    
+    this.logger.debug('HTTP transport options', { options });
+
+    // Create the HTTP transport
+    const transport = new HttpTransport(this.logger, options);
+
+    this.logger.debug('HTTP transport created');
+
+    return transport;
+  }
+
+  /**
+   * Start the transport (for HTTP mode)
+   * @example
+   * ```typescript
+   * await transportManager.start();
+   * ```
+   */
+  async start(): Promise<void> {
+    if (this.config.type === 'http' && this.httpTransport) {
+      await this.httpTransport.start();
+      this.logger.info('HTTP transport started successfully');
+    } else if (this.config.type === 'stdio') {
+      this.logger.info('STDIO transport ready (no start required)');
+    } else {
+      throw new Error(`Cannot start transport of type: ${this.config.type}`);
+    }
+  }
+
+  /**
+   * Stop the transport (for HTTP mode)
+   * @example
+   * ```typescript
+   * await transportManager.stop();
+   * ```
+   */
+  async stop(): Promise<void> {
+    if (this.httpTransport) {
+      await this.httpTransport.stop();
+      this.httpTransport = undefined;
+      this.logger.info('HTTP transport stopped');
+    }
+    this.transport = undefined;
   }
 
   /**
@@ -170,8 +470,13 @@ export class TransportManager {
     this.logger.info('Cleaning up transport resources');
 
     try {
-      // Currently no cleanup needed for STDIO transport
-      // This method is prepared for future transport types
+      // Stop HTTP transport if running
+      if (this.httpTransport) {
+        await this.httpTransport.stop();
+        this.httpTransport = undefined;
+      }
+      
+      // Clean up STDIO transport
       this.transport = undefined;
       
       this.logger.info('Transport cleanup completed');

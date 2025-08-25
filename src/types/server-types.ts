@@ -100,11 +100,28 @@ export interface PromptHandlerConfig extends BaseHandlerConfig {
  */
 export interface TransportConfig {
   /** Transport type */
-  type: 'stdio' | 'sse' | 'websocket';
+  type: 'stdio' | 'sse' | 'websocket' | 'http';
   /** Logger instance */
   logger: Logger;
   /** Additional transport options */
   options?: Record<string, unknown>;
+}
+
+/**
+ * HTTP transport configuration options
+ * @description Specific options for HTTP/SSE transport
+ */
+export interface HttpTransportOptions {
+  /** Port number for HTTP server */
+  port?: number;
+  /** Host address to bind to */
+  host?: string;
+  /** Enable CORS for cross-origin requests */
+  cors?: boolean;
+  /** Maximum number of SSE connections */
+  maxConnections?: number;
+  /** SSE connection timeout in milliseconds */
+  connectionTimeout?: number;
 }
 
 /**

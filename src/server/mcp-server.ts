@@ -90,10 +90,17 @@ export class MCPServer {
       logRequests: true,
     });
 
+    // Determine transport type from environment variable
+    const transportType = (process.env.TRANSPORT as 'stdio' | 'http') || 'stdio';
+    
+    // Get port from environment variable or use default
+    const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+    
     // Initialize transport manager with proper configuration
     this.transportManager = new TransportManager({
-      type: 'stdio',
+      type: transportType,
       logger: createLogger('Transport'),
+      options: transportType === 'http' ? { port } : {},
     });
 
     this.setupRequestHandlers();
@@ -172,7 +179,7 @@ export class MCPServer {
   }
 
   /**
-   * Starts the MCP server with STDIO transport
+   * Starts the MCP server with the configured transport
    * @description Initializes transport and connects the server
    * @throws {Error} If server is already running or fails to start
    * @example
@@ -193,14 +200,30 @@ export class MCPServer {
     try {
       this.logger.info('Starting MCP server');
 
-      // Create and connect transport
-      const transport = this.transportManager.createTransport();
-      await this.server.connect(transport);
+      const transportType = this.transportManager.getConfig().type;
+
+      if (transportType === 'stdio') {
+        // Create and connect STDIO transport
+        const transport = this.transportManager.createTransport();
+        if (!transport) {
+          throw new Error('Failed to create STDIO transport');
+        }
+        await this.server.connect(transport);
+      } else if (transportType === 'http') {
+        // Create HTTP transport and start it
+        this.transportManager.createTransport(); // This creates the HTTP transport internally
+        await this.transportManager.start(); // This starts the HTTP server
+        // For HTTP mode, we don't connect a transport to the MCP server
+        // The HTTP endpoints handle MCP requests directly
+      } else {
+        throw new Error(`Unsupported transport type: ${transportType}`);
+      }
 
       this.isRunning = true;
       this.logger.info('MCP server started successfully', {
         serverName: SERVER_INFO.name,
         version: SERVER_INFO.version,
+        transport: transportType,
       });
     } catch (error) {
       this.logger.error('Failed to start MCP server', { error });
