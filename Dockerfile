@@ -22,8 +22,8 @@ FROM node:22-alpine AS production
 WORKDIR /app
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S mcp -u 1001
+# RUN addgroup -g 1001 -S nodejs && \
+#     adduser -S mcp -u 1001
 
 # Copy package files
 COPY package*.json ./
@@ -35,8 +35,8 @@ RUN npm ci --only=production && npm cache clean --force
 COPY --from=builder /app/build ./build
 
 # Change ownership to non-root user
-RUN chown -R mcp:nodejs /app
-USER mcp
+# RUN chown -R mcp:nodejs /app
+# USER mcp
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
@@ -46,4 +46,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 EXPOSE 3000
 
 # Start the server
-CMD ["node", "build/index.js"]
+CMD ["npm", "start"]

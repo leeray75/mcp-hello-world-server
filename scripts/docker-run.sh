@@ -10,6 +10,7 @@ echo "🚀 Starting MCP Hello World Server in Docker..."
 
 # Run the container
 docker run -d \
+  -it \
   --name mcp-hello-world \
   --restart unless-stopped \
   -p 3000:3000 \
