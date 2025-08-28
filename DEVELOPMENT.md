@@ -41,7 +41,7 @@ npm run start:http
 TRANSPORT=http npm start
 
 # Test health endpoint
-curl http://localhost:3000/health
+curl http://localhost:3001/health
 
 # Custom port
 PORT=8080 npm run start:http
@@ -57,7 +57,7 @@ PORT=8080 npm run start:http
 
 ### HTTP Workflow (Manual Testing)
 1. Start HTTP server: `npm run start:http`
-2. Test health endpoint: `curl http://localhost:3000/health`
+2. Test health endpoint: `curl http://localhost:3001/health`
 3. Test MCP endpoints with HTTP client or custom tools
 4. Monitor server logs for debugging
 
@@ -66,7 +66,7 @@ PORT=8080 npm run start:http
 2. Test HTTP in Docker: `npm run docker:run` (defaults to HTTP)
 3. Test STDIO in Docker: `npm run docker:run:stdio`
 4. View logs: `docker logs mcp-hello-world`
-5. Health check: `docker exec mcp-hello-world curl -f http://localhost:3000/health`
+5. Health check: `docker exec mcp-hello-world curl -f http://localhost:3001/health`
 
 ### Code Structure
 - **Tools**: Functions that LLMs can call
@@ -85,7 +85,7 @@ PORT=8080 npm run start:http
 - `TRANSPORT=http` (for web services, default in Docker)
 
 ### HTTP Configuration
-- `PORT=3000` (default HTTP port)
+- `PORT=3001` (default HTTP port)
 - `NODE_ENV=development|production`
 
 ### Example Configurations
@@ -94,7 +94,7 @@ PORT=8080 npm run start:http
 npm start
 
 # Local HTTP development
-TRANSPORT=http PORT=3000 npm start
+TRANSPORT=http PORT=3001 npm start
 
 # HTTP with custom port
 TRANSPORT=http PORT=8080 npm start

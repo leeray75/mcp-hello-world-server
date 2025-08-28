@@ -30,7 +30,7 @@ This server supports two transport modes:
 - **Use Case**: Web services, containerized deployments, remote access
 - **Protocol**: HTTP with Server-Sent Events for real-time communication
 - **Start Command**: `TRANSPORT=http npm start` or `npm run start:http`
-- **Default Port**: 3000 (configurable via `PORT` environment variable)
+- **Default Port**: 3001 (configurable via `PORT` environment variable)
 - **Health Check**: `GET /health` endpoint available
 
 ## 📋 Prerequisites
@@ -77,7 +77,7 @@ This server supports two transport modes:
 
 2. **Test health endpoint:**
    ```bash
-   curl http://localhost:3000/health
+   curl http://localhost:3001/health
    ```
 
 3. **Custom port:**
@@ -96,7 +96,7 @@ This server supports two transport modes:
    ```bash
    npm run docker:run
    # or with custom options
-   ./scripts/docker-run.sh --transport=http --port=3000
+   ./scripts/docker-run.sh --transport=http --port=3001
    ```
 
 3. **Run STDIO server:**
@@ -159,7 +159,7 @@ npm run docker:stop
 docker build -t mcp-hello-world-server .
 
 # Run container
-docker run -d --name mcp-hello-world -p 3000:3000 mcp-hello-world-server
+docker run -d --name mcp-hello-world -p 3001:3001 mcp-hello-world-server
 
 # View logs
 docker logs mcp-hello-world
@@ -189,14 +189,14 @@ For web services and remote access:
 
 ```bash
 # Start HTTP server
-TRANSPORT=http PORT=3000 npm start
+TRANSPORT=http PORT=3001 npm start
 
 # Health check endpoint
-curl http://localhost:3000/health
+curl http://localhost:3001/health
 
 # Environment variables
 TRANSPORT=http    # Enable HTTP transport
-PORT=3000         # Server port (default: 3000)
+PORT=3001         # Server port (default: 3001)
 ```
 
 ### MCP Client Compatibility
@@ -213,7 +213,7 @@ PORT=3000         # Server port (default: 3000)
 - **Runtime**: Node.js 22+ with ES modules
 - **Language**: TypeScript with strict type checking
 - **Container**: Multi-stage Docker build with Alpine Linux + curl
-- **Port**: 3000 (configurable via PORT environment variable)
+- **Port**: 3001 (configurable via PORT environment variable)
 - **Health Check**: `/health` endpoint for HTTP transport
 
 ## 📚 API Reference
@@ -330,7 +330,7 @@ mcp-hello-world-server/
 
 ### HTTP Transport Issues
 - **Port conflicts**: Change port with `PORT=8080 npm run start:http`
-- **Health check fails**: Verify server is running: `curl http://localhost:3000/health`
+- **Health check fails**: Verify server is running: `curl http://localhost:3001/health`
 - **CORS issues**: Server has basic CORS enabled for development
 - **Connection refused**: Ensure no firewall blocking port 3000
 
@@ -338,7 +338,7 @@ mcp-hello-world-server/
 - Verify Docker is running: `docker info`
 - Check image exists: `docker images | grep mcp-hello-world`
 - View container logs: `docker logs mcp-hello-world`
-- Health check: `docker exec mcp-hello-world curl -f http://localhost:3000/health`
+- Health check: `docker exec mcp-hello-world curl -f http://localhost:3001/health`
 - Rebuild image: `npm run docker:build`
 
 ### Environment Variables
