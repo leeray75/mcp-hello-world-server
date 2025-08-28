@@ -1,0 +1,30 @@
+{
+  "mcpServers": {
+    "mcp-hello-world-server": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["build/index.js"],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    "mcp-hello-world-server-dev": {
+      "type": "stdio",
+      "command": "tsx",
+      "args": ["src/index.ts"],
+      "env": {
+        "NODE_ENV": "development"
+      }
+    },
+    "mcp-hello-world-server-http": {
+      "type": "streamable-http",
+      "url": "http://localhost:3001/mcp",
+      "note": "Streamable HTTP transport - ensure the server is running first with 'npm run dev' or 'npm start'"
+    },
+    "mcp-hello-world-server-sse": {
+      "type": "sse",
+      "url": "http://localhost:3001/sse",
+      "note": "SSE transport - includes keepalive pings and SSE-formatted error events"
+    }
+  }
+}

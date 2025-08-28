@@ -85,18 +85,19 @@ export class HttpTransport {
       })(req as any, res as any, next);
     });
 
-    if (this.options.cors) {
-      this.app.use((req, res, next) => {
-        res.header('Access-Control-Allow-Origin', '*');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Cache-Control, mcp-session-id, Mcp-Session-Id');
-        res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
-        if (req.method === 'OPTIONS') {
-          res.sendStatus(200);
-          return;
-        }
-        next();
-      });
-    }
+    // Ensure basic CORS and header exposure for Inspector (may run on different origin)
+    // Keep this permissive for local/dev usage; in production you may want to scope origins.
+    this.app.use((req, res, next) => {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Cache-Control, mcp-session-id, Mcp-Session-Id');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
+      res.header('Access-Control-Expose-Headers', 'mcp-session-id, Mcp-Session-Id');
+      if (req.method === 'OPTIONS') {
+        res.sendStatus(200);
+        return;
+      }
+      next();
+    });
 
     // Request logging
     this.app.use((req, res, next) => {
@@ -133,7 +134,8 @@ export class HttpTransport {
     });
 
     // Legacy Messages endpoint for SSE transport (backwards compatibility)
-    this.app.post('/messages', express.raw({ type: '*/*', limit: '10mb' }), (req: Request, res: Response) => {
+    // Do NOT consume the request body here (no body parser) so the SDK transport can read the raw request stream.
+    this.app.post('/messages', (req: Request, res: Response) => {
       try {
         const sessionId =
           (req.query.sessionId as string | undefined) ||
@@ -149,15 +151,18 @@ export class HttpTransport {
         }
 
         const transport = this.sseTransports[sessionId];
-
+        // Avoid logging the full transport object (it can contain circular references such as Socket/HTTP objects).
+        // Log only lightweight identifying information to prevent JSON.stringify errors in the logger.
+        this.logger.debug('transportPresent', { hasTransport: !!transport, sessionId: transport?.sessionId });
         if (!transport) {
           this.logger.error(`Transport not found for session ID: ${sessionId}`);
           res.status(404).json({ error: 'Session not found' });
           return;
         }
 
+        // Let the SDK transport read the raw request stream and respond
         transport.handlePostMessage(req, res);
-        } catch (error) {
+      } catch (error) {
         this.logger.error('Failed to handle POST /messages', { error: error instanceof Error ? error.message : String(error) });
         if (!res.headersSent) {
           res.status(500).json({ error: 'Internal error' });
@@ -321,6 +326,14 @@ export class HttpTransport {
         const clientIP = req.ip || (req.connection && (req.connection as any).remoteAddress);
         this.logger.info(`New SSE connection established from ${clientIP}`);
 
+        // Ensure the mcp-session-id header will be visible to cross-origin clients
+        try {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Expose-Headers', 'mcp-session-id, Mcp-Session-Id');
+        } catch (e) {
+          // ignore if headers cannot be set
+        }
+
         // Create SSE transport instance with the correct message endpoint
         const transport = new SSEServerTransport('/messages', res);
 
@@ -334,7 +347,7 @@ export class HttpTransport {
           try {
             res.write(': ping\n\n');
           } catch (err) {
-            this.logger.error('Failed to send SSE ping:', err);
+            this.logger.error('Failed to send SSE ping', { error: err instanceof Error ? err.message : String(err) });
           }
         }, pingIntervalMs);
 
@@ -363,11 +376,12 @@ export class HttpTransport {
         };
 
         res.on('close', () => {
+          this.logger.info(`SSE connection close for session ${transport.sessionId}`);
           cleanupTransport();
         });
 
         res.on('error', (error) => {
-          this.logger.error(`SSE connection error for session ${transport.sessionId}:`, error);
+          this.logger.error(`SSE connection error for session ${transport.sessionId}:`, { error: error instanceof Error ? error.message : String(error) });
           cleanupTransport();
         });
       } catch (error) {
@@ -445,7 +459,7 @@ export class HttpTransport {
           result
         });
       } catch (error) {
-        this.logger.error('MCP HTTP request failed', { endpoint, error });
+        this.logger.error('MCP HTTP request failed', { endpoint, error: error instanceof Error ? error.message : String(error) });
         res.status(500).json({
           jsonrpc: '2.0',
           id: req.body.id || null,
