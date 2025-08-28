@@ -213,6 +213,48 @@ export class MCPServer {
         // Create HTTP transport and start it
         this.transportManager.createTransport(); // This creates the HTTP transport internally
         await this.transportManager.start(); // This starts the HTTP server
+        
+        // Register MCP handlers with HTTP transport
+        const httpTransport = this.transportManager.getHttpTransport();
+        if (httpTransport) {
+          // Attach the MCP server instance to the HTTP transport so it can create/
+          // manage StreamableHTTPServerTransport sessions for the inspector (initialize flow).
+          if (typeof (httpTransport as any).setMCPServer === 'function') {
+            (httpTransport as any).setMCPServer(this.server);
+            this.logger.info('Attached MCP server to HTTP transport for streamable sessions');
+          }
+
+          httpTransport.setMCPHandlers({
+            handleToolsList: async () => {
+              const response = await this.toolHandlers.handleListTools();
+              return { tools: response.tools };
+            },
+            handleToolsCall: async (request: any) => {
+              const response = await this.toolHandlers.handleCallTool(request);
+              return { content: response.content };
+            },
+            handleResourcesList: async () => {
+              const response = await this.resourceHandlers.handleListResources();
+              return { resources: response.resources };
+            },
+            handleResourcesRead: async (request: any) => {
+              const response = await this.resourceHandlers.handleReadResource(request);
+              return { contents: response.contents };
+            },
+            handlePromptsList: async () => {
+              const response = await this.promptHandlers.handleListPrompts();
+              return { prompts: response.prompts };
+            },
+            handlePromptsGet: async (request: any) => {
+              const response = await this.promptHandlers.handleGetPrompt(request);
+              return { 
+                description: response.description,
+                messages: response.messages 
+              };
+            },
+          });
+          this.logger.info('MCP handlers registered with HTTP transport');
+        }
         // For HTTP mode, we don't connect a transport to the MCP server
         // The HTTP endpoints handle MCP requests directly
       } else {
